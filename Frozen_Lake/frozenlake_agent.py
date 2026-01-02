@@ -1,15 +1,15 @@
 import numpy as np
 import gymnasium as gym
 import random
-import imageio
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pickle  # built-in, no need for pickle5
+#import time
 
 # ----------------------------
-# 1. Create FrozenLake environment
+# 1. Create FrozenLake environment for training
 # ----------------------------
-env = gym.make("FrozenLake-v1", map_name="4x4", is_slippery=False, render_mode="human")  # "human" shows a window
+env = gym.make("FrozenLake-v1", map_name="4x4", is_slippery=False)  # no render_mode, runs silently
 
 state_space = env.observation_space.n
 action_space = env.action_space.n
@@ -37,7 +37,7 @@ def epsilon_greedy_policy(Qtable, state, epsilon):
 # ----------------------------
 # 4. Hyperparameters
 # ----------------------------
-n_training_episodes = 100
+n_training_episodes = 50000
 learning_rate = 0.7
 gamma = 0.95
 max_steps = 99
@@ -69,16 +69,13 @@ def train(n_training_episodes, min_epsilon, max_epsilon, decay_rate, env, max_st
     return Qtable
 
 # ----------------------------
-# 6. Train the agent
+# 6. Train the agent silently
 # ----------------------------
 Qtable = train(n_training_episodes, min_epsilon, max_epsilon, decay_rate, env, max_steps, Qtable)
 
 # ----------------------------
 # Print and visualize Q-table
 # ----------------------------
-import numpy as np
-import matplotlib.pyplot as plt
-
 np.set_printoptions(precision=2, suppress=True)
 print("Q-table after training:")
 print(Qtable)
@@ -91,10 +88,8 @@ plt.xlabel("Actions (0=L,1=D,2=R,3=U)")
 plt.ylabel("States")
 plt.show()
 
-
-
 # ----------------------------
-# 7. Evaluate agent
+# 7. Evaluate agent silently
 # ----------------------------
 def evaluate_agent(env, max_steps, n_eval_episodes, Qtable):
     rewards = []
@@ -115,25 +110,32 @@ def evaluate_agent(env, max_steps, n_eval_episodes, Qtable):
 mean_reward, std_reward = evaluate_agent(env, max_steps, 100, Qtable)
 print(f"Mean Reward: {mean_reward:.2f} ± {std_reward:.2f}")
 
+env.close()  # close training environment
+
 # ----------------------------
-# 8. Watch agent play
+# 8. Watch trained agent live
 # ----------------------------
-episodes_to_watch = 5
-for ep in range(episodes_to_watch):
-    state, info = env.reset()
-    terminated = False
-    truncated = False
-    print(f"Episode {ep+1}")
-    for step in range(max_steps):
-        env.render()  # display environment
-        action = greedy_policy(Qtable, state)
-        state, reward, terminated, truncated, info = env.step(action)
-        if terminated or truncated:
-            break
-env.close()
+watch_env = gym.make("FrozenLake-v1", map_name="4x4", is_slippery=False, render_mode="human")
+
+state, info = watch_env.reset()
+terminated = False
+truncated = False
+step = 0
+print("Watching trained agent...")
+
+while not (terminated or truncated) and step < max_steps:
+    watch_env.render()  # display environment live
+    action = greedy_policy(Qtable, state)
+    state, reward, terminated, truncated, info = watch_env.step(action)
+    step += 1
+    #time.sleep(0.3)  # slow down so you can see movements
+
+#time.sleep(2)  # pause on final frame
+print(f"Episode finished in {step} steps, reward: {reward}")
+watch_env.close()
 
 # ----------------------------
 # 9. Optional: Save Q-table
 # ----------------------------
-with open("Qtable.pkl", "wb") as f:
-    pickle.dump(Qtable, f)
+# with open("Qtable.pkl", "wb") as f:
+#     pickle.dump(Qtable, f)
